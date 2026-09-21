@@ -1,0 +1,30 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevNetDoctor.Core", "src\DevNetDoctor.Core\DevNetDoctor.Core.csproj", "{7E9A48D0-08F2-4E57-91A5-FC0F0EE7A101}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevNetDoctor.App", "src\DevNetDoctor.App\DevNetDoctor.App.csproj", "{DD7698AA-7ED3-4D22-A813-58715AD7B102}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevNetDoctor.SelfTest", "src\DevNetDoctor.SelfTest\DevNetDoctor.SelfTest.csproj", "{537FF174-EDE3-4CB3-87CF-1DB84F53C103}"
+EndProject
+Global
+  GlobalSection(SolutionConfigurationPlatforms) = preSolution
+    Debug|Any CPU = Debug|Any CPU
+    Release|Any CPU = Release|Any CPU
+  EndGlobalSection
+  GlobalSection(ProjectConfigurationPlatforms) = postSolution
+    {7E9A48D0-08F2-4E57-91A5-FC0F0EE7A101}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {7E9A48D0-08F2-4E57-91A5-FC0F0EE7A101}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {7E9A48D0-08F2-4E57-91A5-FC0F0EE7A101}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {7E9A48D0-08F2-4E57-91A5-FC0F0EE7A101}.Release|Any CPU.Build.0 = Release|Any CPU
+    {DD7698AA-7ED3-4D22-A813-58715AD7B102}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {DD7698AA-7ED3-4D22-A813-58715AD7B102}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {DD7698AA-7ED3-4D22-A813-58715AD7B102}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {DD7698AA-7ED3-4D22-A813-58715AD7B102}.Release|Any CPU.Build.0 = Release|Any CPU
+    {537FF174-EDE3-4CB3-87CF-1DB84F53C103}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+    {537FF174-EDE3-4CB3-87CF-1DB84F53C103}.Debug|Any CPU.Build.0 = Debug|Any CPU
+    {537FF174-EDE3-4CB3-87CF-1DB84F53C103}.Release|Any CPU.ActiveCfg = Release|Any CPU
+    {537FF174-EDE3-4CB3-87CF-1DB84F53C103}.Release|Any CPU.Build.0 = Release|Any CPU
+  EndGlobalSection
+EndGlobal

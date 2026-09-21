@@ -1,0 +1,21 @@
+# v0.1 release checklist
+
+- [ ] Run `scripts/build.ps1` on Windows with .NET 10 SDK.
+- [ ] All dependency-free self-tests pass.
+- [ ] Test clean machine with no proxy.
+- [ ] Test live WinINET loopback proxy with empty proxy env vars.
+- [ ] Test stale environment proxy port.
+- [ ] Test identical WinINET and environment proxies.
+- [ ] Test Codex not installed.
+- [ ] Test Codex installed but logged out.
+- [ ] Test Codex logged in with `auth.json` present.
+- [ ] Run Codex repair on config with no `[features]` section.
+- [ ] Run Codex repair on config with existing `[features]` keys.
+- [ ] Run Codex repair twice (idempotence).
+- [ ] Confirm config backup can restore original.
+- [ ] Test CCSwitch running and stopped.
+- [ ] Review generated report manually for secrets.
+- [ ] Publish `win-x64` single-file build.
+- [ ] Test the EXE on a machine without the .NET runtime installed.
+- [ ] Add SHA-256 checksum to the GitHub release.
+- [ ] Replace repository placeholder in community reply template.
