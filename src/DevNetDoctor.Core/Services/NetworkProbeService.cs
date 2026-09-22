@@ -187,7 +187,7 @@ public sealed class NetworkProbeService
                 var code = error.ValueKind == JsonValueKind.String ? error.GetString() : Field(error, "code") ?? Field(error, "type");
                 var message = Field(error, "message") ?? Field(root, "error_description") ?? "";
                 if (code == "unsupported_country_region_territory") return "RegionBlocked";
-                if (status == 400 && (code == "unsupported_grant_type"
+                if (status == 400 && ((code?.Contains("grant_type", StringComparison.OrdinalIgnoreCase) ?? false)
                     || (code is "invalid_value" or "invalid_request") && message.Contains("grant_type", StringComparison.OrdinalIgnoreCase)))
                     return "OAuthReachable";
             }

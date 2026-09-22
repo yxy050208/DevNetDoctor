@@ -66,6 +66,7 @@ internal static class Program
     private static void TestRouteClassification()
     {
         Assert(NetworkProbeService.Classify(400, "{\"error\":{\"code\":\"unsupported_grant_type\",\"message\":\"grant_type is invalid\"}}") == "OAuthReachable", "Classify OAuth validation response");
+        Assert(NetworkProbeService.Classify(400, "{\"error\":\"invalid_grant_type\"}") == "OAuthReachable", "Classify string OAuth validation response");
         Assert(NetworkProbeService.Classify(403, "{\"error\":\"unsupported_country_region_territory\"}") == "RegionBlocked", "Classify region block");
         Assert(NetworkProbeService.Classify(200, "ok") == "HttpResponse", "Classify generic reachable response");
         Assert(NetworkProbeService.Classify(400, "grant_type appears in an HTML error page") != "OAuthReachable", "Do not classify arbitrary text as OAuth");
