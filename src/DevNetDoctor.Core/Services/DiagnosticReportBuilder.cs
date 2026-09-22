@@ -8,7 +8,7 @@ public static class DiagnosticReportBuilder
     public static string Build(DiagnosticSnapshot s)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("DevNet Doctor diagnostic report");
+        sb.AppendLine("DevNet Doctor 0.1.1 diagnostic report");
         sb.AppendLine("================================");
         sb.AppendLine($"Generated: {s.Timestamp:yyyy-MM-dd HH:mm:ss zzz}");
         sb.AppendLine($"OS: {Environment.OSVersion}");
@@ -41,15 +41,23 @@ public static class DiagnosticReportBuilder
         sb.AppendLine("[Route matrix: OpenAI OAuth endpoint]");
         foreach (var probe in s.Probes)
         {
-            sb.AppendLine($"{probe.RouteName}: status={probe.HttpStatus?.ToString() ?? "n/a"}, class={probe.Classification}, proxy={probe.Proxy ?? "(none)"}, elapsed={probe.ElapsedMilliseconds}ms");
+            sb.AppendLine($"{probe.RouteName} [{probe.Method} {probe.Endpoint}]: status={probe.HttpStatus?.ToString() ?? "n/a"}, class={probe.Classification}, proxy={probe.Proxy ?? "(none)"}, elapsed={probe.ElapsedMilliseconds}ms");
+            sb.AppendLine($"  HTTP version: {probe.HttpVersion ?? "unknown"}; peer: {probe.RemoteAddress ?? "not recorded"}");
             if (!string.IsNullOrWhiteSpace(probe.Detail)) sb.AppendLine($"  detail: {probe.Detail}");
+            if (!string.IsNullOrWhiteSpace(probe.CertificateSubject)) sb.AppendLine($"  certificate subject: {probe.CertificateSubject}");
+            if (!string.IsNullOrWhiteSpace(probe.CertificateIssuer)) sb.AppendLine($"  certificate issuer: {probe.CertificateIssuer}");
+            if (!string.IsNullOrWhiteSpace(probe.TlsPolicyErrors)) sb.AppendLine($"  TLS policy errors: {probe.TlsPolicyErrors}");
+            if (!string.IsNullOrWhiteSpace(probe.CertificateChainStatus)) sb.AppendLine($"  chain status: {probe.CertificateChainStatus}");
+            if (!string.IsNullOrWhiteSpace(probe.CertificateThumbprint)) sb.AppendLine($"  certificate fingerprint: {probe.CertificateThumbprint}");
         }
-        sb.AppendLine("Note: the OAuth probe sends only grant_type=test and never sends account credentials or tokens.");
+        sb.AppendLine("OAuth sends only grant_type=test. Device-auth uses HEAD, which does not test device authorization or POST behavior. No credentials, cookies, or codes are sent.");
+        sb.AppendLine("All probes run in Windows/.NET, not Codex or WSL. Direct bypasses explicit HTTP proxies but still follows OS/VPN routing. Certificate differences alone do not prove interception.");
         sb.AppendLine();
 
         sb.AppendLine("[Codex]");
         sb.AppendLine($"Installed: {s.Codex.Installed}");
         sb.AppendLine($"Version: {s.Codex.Version ?? "(unknown)"}");
+        sb.AppendLine($"Desktop package version: {s.Codex.DesktopVersion}");
         sb.AppendLine($"Executables: {string.Join(" | ", s.Codex.Executables)}");
         sb.AppendLine($"CODEX_HOME resolved: {s.Codex.CodexHome}");
         sb.AppendLine($"Config: {s.Codex.ConfigPath} (exists={s.Codex.ConfigExists})");

@@ -65,9 +65,13 @@ internal static class Program
 
     private static void TestRouteClassification()
     {
-        Assert(NetworkProbeService.Classify(400, "{\"error\":\"invalid_value\"}") == "OAuthReachable", "Classify OAuth validation response");
-        Assert(NetworkProbeService.Classify(403, "unsupported_country_region_territory") == "RegionBlocked", "Classify region block");
-        Assert(NetworkProbeService.Classify(200, "ok") == "Reachable", "Classify generic reachable response");
+        Assert(NetworkProbeService.Classify(400, "{\"error\":{\"code\":\"unsupported_grant_type\",\"message\":\"grant_type is invalid\"}}") == "OAuthReachable", "Classify OAuth validation response");
+        Assert(NetworkProbeService.Classify(403, "{\"error\":\"unsupported_country_region_territory\"}") == "RegionBlocked", "Classify region block");
+        Assert(NetworkProbeService.Classify(200, "ok") == "HttpResponse", "Classify generic reachable response");
+        Assert(NetworkProbeService.Classify(400, "grant_type appears in an HTML error page") != "OAuthReachable", "Do not classify arbitrary text as OAuth");
+        Assert(NetworkProbeService.ClassifyDeviceAuth(400) == "Http400", "Classify device-auth transport response");
+        Assert(NetworkProbeService.AcceptCertificate(System.Net.Security.SslPolicyErrors.None), "Accept valid TLS policy");
+        Assert(!NetworkProbeService.AcceptCertificate(System.Net.Security.SslPolicyErrors.RemoteCertificateNameMismatch), "Reject invalid TLS policy");
     }
 
     private static void TestRedactorExtended()

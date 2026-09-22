@@ -13,6 +13,8 @@ public sealed class CodexAdapter
             : Array.Empty<string>();
 
         var installed = paths.Length > 0;
+        var desktop = await CommandRunner.RunAsync("powershell.exe",
+            "-NoProfile -NonInteractive -Command \"Get-AppxPackage -Name '*Codex*' | ForEach-Object { $_.Name + ' ' + $_.Version }\"", 5000, cancellationToken);
         var version = installed ? (await CommandRunner.RunAsync("codex", "--version", 5000, cancellationToken)).Combined.Trim() : null;
         var loginStatus = installed ? (await CommandRunner.RunAsync("codex", "login status", 7000, cancellationToken)).Combined.Trim() : "Not installed";
 
@@ -35,6 +37,8 @@ public sealed class CodexAdapter
         {
             Installed = installed,
             Version = SecretRedactor.Redact(version),
+            DesktopVersion = desktop.ExitCode == 0 && !string.IsNullOrWhiteSpace(desktop.StdOut)
+                ? SecretRedactor.Redact(desktop.StdOut.Trim()) : "Unknown (check About Codex; CLI version is separate)",
             Executables = paths,
             CodexHome = codexHome,
             ConfigPath = configPath,

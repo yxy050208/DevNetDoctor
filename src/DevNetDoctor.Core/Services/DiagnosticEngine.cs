@@ -45,7 +45,7 @@ public sealed class DiagnosticEngine
         };
     }
 
-    private static IReadOnlyList<Finding> Analyze(DiagnosticSnapshot s)
+    internal static IReadOnlyList<Finding> Analyze(DiagnosticSnapshot s)
     {
         var findings = new List<Finding>();
         var sys = s.SystemProxy.Enabled ? s.SystemProxy.HttpsProxy ?? s.SystemProxy.HttpProxy : null;
@@ -65,7 +65,7 @@ public sealed class DiagnosticEngine
         else if (!string.IsNullOrWhiteSpace(s.SystemProxy.AutoConfigUrl))
         {
             findings.Add(new Finding(Severity.Info, "PAC configuration detected",
-                $"AutoConfigURL is configured: {s.SystemProxy.AutoConfigUrl}. v0.1 reports PAC but does not execute PAC scripts.",
+                $"AutoConfigURL is configured: {s.SystemProxy.AutoConfigUrl}. v0.1.1 reports PAC but does not execute PAC scripts.",
                 "Use the route matrix to confirm which path works.", "PAC_DETECTED"));
         }
         else
@@ -90,15 +90,63 @@ public sealed class DiagnosticEngine
                 "ENV_PROXY_CLOSED"));
         }
 
-        var direct = s.Probes.FirstOrDefault(p => p.RouteName == "Direct");
-        var system = s.Probes.FirstOrDefault(p => p.RouteName == "Windows system proxy");
-        var environment = s.Probes.FirstOrDefault(p => p.RouteName == "Environment proxy");
+        var oauthProbes = s.Probes.Where(p => p.Endpoint == "oauth/token").ToArray();
+        var direct = oauthProbes.FirstOrDefault(p => p.RouteName == "Direct");
+        var system = oauthProbes.FirstOrDefault(p => p.RouteName == "Windows system proxy");
+        var environment = oauthProbes.FirstOrDefault(p => p.RouteName == "Environment proxy");
         var workingProxy = new[] { system, environment }.FirstOrDefault(p => p?.Classification == "OAuthReachable");
 
-        foreach (var probe in s.Probes.Where(p => p.Classification != "OAuthReachable"))
-            findings.Add(new Finding(Severity.Warning, $"{probe.RouteName}: OAuth not confirmed",
+        foreach (var probe in s.Probes)
+        {
+            if (probe.Classification == "OAuthReachable") continue;
+            if (probe.Method == "HEAD" && probe.TransportSucceeded)
+            {
+                findings.Add(new Finding(Severity.Info, $"{probe.RouteName}: device-auth HEAD response",
+                    $"HTTP {probe.HttpStatus}; {probe.Classification}. This does not verify device login or its POST request.",
+                    Code: "DEVICE_HEAD_ONLY"));
+                continue;
+            }
+            findings.Add(new Finding(Severity.Warning, $"{probe.RouteName}: {probe.Endpoint} not confirmed",
                 $"HTTP {probe.HttpStatus?.ToString() ?? "n/a"}; {probe.Classification}. {probe.Detail}",
-                "Inspect the route matrix. An HTTP response alone does not confirm OAuth service availability.", "ROUTE_UNCONFIRMED"));
+                probe.Endpoint == "oauth/token"
+                    ? "Inspect the route matrix. A response alone does not confirm OAuth service availability."
+                    : "Inspect the device-auth HEAD transport result separately; no login is attempted.",
+                "ROUTE_UNCONFIRMED"));
+        }
+
+        var tlsErrors = s.Probes.Where(p => p.TlsPolicyErrors is not (null or "None")).ToArray();
+        if (tlsErrors.Length > 0)
+        {
+            findings.Add(new Finding(Severity.Error, "TLS certificate validation failed",
+                string.Join(" ", tlsErrors.Select(p => $"{p.RouteName}: {p.TlsPolicyErrors}.")),
+                "Check the clock, certificate chain, and HTTPS inspection policies with your security administrator. A certificate failure alone does not identify a security product. Keep certificate verification enabled.",
+                "TLS_CERTIFICATE_ERROR"));
+        }
+
+        var issuers = oauthProbes.Where(p => !string.IsNullOrWhiteSpace(p.CertificateIssuer))
+            .Select(p => p.CertificateIssuer!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+        if (issuers.Length > 1)
+        {
+            findings.Add(new Finding(Severity.Info, "TLS certificate issuer differs by route",
+                $"The OAuth endpoint presented different certificate issuers across tested routes: {string.Join(" | ", issuers)}.",
+                "Certificate rotation and CDN differences can also cause this. Compare the certificate evidence; differing issuers alone do not prove HTTPS inspection.",
+                "TLS_ROUTE_DIFFERENCE"));
+        }
+
+        var v4 = oauthProbes.FirstOrDefault(p => p.RouteName == "Direct IPv4");
+        var v6 = oauthProbes.FirstOrDefault(p => p.RouteName == "Direct IPv6");
+        if (v4 is not null && v6 is not null && (v4.Classification == "OAuthReachable") != (v6.Classification == "OAuthReachable"))
+            findings.Add(new Finding(Severity.Info, "IPv4 and IPv6 results differ",
+                $"IPv4: {v4.Classification}; IPv6: {v6.Classification}.",
+                "IPv6 may be unavailable on this network. These are direct Windows probes, not Codex or WSL traffic; do not disable IPv6 based on this result alone.", "IP_FAMILY_DIFFERENCE"));
+
+        if (oauthProbes.Any(p => p.Classification == "OAuthReachable"))
+            findings.Add(new Finding(Severity.Info, "If Codex still fails while this probe succeeds",
+                "This .NET probe reached OAuth; it does not reproduce Codex's TLS stack, token exchange, Desktop login, or WSL networking. Not being logged in alone is not a login error.",
+                "If you observed a failure, record Desktop and CLI versions and update timing; compare same-route curl results, certificate errors, and HTTPS inspection policies. These are investigation leads, not a confirmed regression.",
+                "CODEX_APP_LAYER_CHECK"));
 
         if (direct?.Classification == "RegionBlocked" && workingProxy is not null)
         {
@@ -133,6 +181,7 @@ public sealed class DiagnosticEngine
                 findings.Add(new Finding(Severity.Warning, "Codex is not logged in",
                     "Codex CLI reports that no login is active.",
                     "Run Codex login after confirming a working network route.", "CODEX_NOT_LOGGED_IN"));
+
             }
         }
 
@@ -141,7 +190,7 @@ public sealed class DiagnosticEngine
             var ports = s.CcSwitch.ListeningPorts.Count == 0 ? "none detected" : string.Join(", ", s.CcSwitch.ListeningPorts);
             findings.Add(new Finding(Severity.Info, "CCSwitch detected",
                 $"CCSwitch appears to be running. Listening TCP ports associated with its process: {ports}.",
-                "v0.1 does not rewrite CCSwitch provider files; use the report to compare its local endpoint with the active Windows proxy.",
+                "v0.1.1 does not rewrite CCSwitch provider files; use the report to compare its local endpoint with the active Windows proxy.",
                 "CCSWITCH_DETECTED"));
         }
 

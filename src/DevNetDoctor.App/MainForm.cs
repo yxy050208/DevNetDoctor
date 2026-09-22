@@ -26,7 +26,7 @@ public sealed class MainForm : Form
 
     public MainForm()
     {
-        Text = "DevNet Doctor 0.1";
+        Text = "DevNet Doctor 0.1.1";
         Width = 1120;
         Height = 760;
         MinimumSize = new Size(860, 600);
@@ -111,15 +111,16 @@ public sealed class MainForm : Form
         {
             AutoSize = true,
             MaximumSize = new Size(1000, 0),
-            Text = "Tests the OpenAI OAuth endpoint using grant_type=test. No account token, cookie, password, or authorization code is sent. A 400 invalid grant_type/value response means the OAuth service was reached."
+            Text = "Windows/.NET probes: OAuth uses grant_type=test; device-auth uses HEAD (transport only, no login). Direct IPv4/IPv6 still follow VPN/OS routing. Certificate evidence is in Shareable report. These tests do not reproduce Codex or WSL traffic."
         };
         _routeGrid.Columns.Add("Route", "Route");
+        _routeGrid.Columns.Add("Endpoint", "Endpoint");
         _routeGrid.Columns.Add("Proxy", "Proxy");
         _routeGrid.Columns.Add("Status", "HTTP");
         _routeGrid.Columns.Add("Class", "Classification");
         _routeGrid.Columns.Add("Elapsed", "Time");
         _routeGrid.Columns.Add("Detail", "Detail");
-        _routeGrid.Columns[5].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
+        _routeGrid.Columns[6].AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill;
         container.Controls.Add(note, 0, 0);
         container.Controls.Add(_routeGrid, 0, 1);
         page.Controls.Add(container);
@@ -150,7 +151,7 @@ public sealed class MainForm : Form
         {
             AutoSize = true,
             MaximumSize = new Size(1000, 0),
-            Text = "v0.1 detects CCSwitch processes, their listening TCP ports, and likely config files. It intentionally does not rewrite provider configuration because CCSwitch variants use different schemas."
+            Text = "v0.1.1 detects CCSwitch processes, their listening TCP ports, and likely config files. It intentionally does not rewrite provider configuration because CCSwitch variants use different schemas."
         }, 0, 0);
         panel.Controls.Add(_ccSwitchBox, 0, 1);
         page.Controls.Add(panel);
@@ -210,13 +211,14 @@ public sealed class MainForm : Form
 
         _routeGrid.Rows.Clear();
         foreach (var probe in s.Probes)
-            _routeGrid.Rows.Add(probe.RouteName, probe.Proxy ?? "Direct", probe.HttpStatus?.ToString() ?? "—", probe.Classification, $"{probe.ElapsedMilliseconds} ms", probe.Detail);
+            _routeGrid.Rows.Add(probe.RouteName, $"{probe.Method} {probe.Endpoint}", probe.Proxy ?? "Direct", probe.HttpStatus?.ToString() ?? "—", probe.Classification, $"{probe.ElapsedMilliseconds} ms", SecretRedactor.Redact($"{probe.Detail} Issuer: {probe.CertificateIssuer ?? "unknown"}; TLS: {probe.TlsPolicyErrors ?? "not observed"}"));
 
         var c = s.Codex;
         _codexBox.Text = string.Join(Environment.NewLine, new[]
         {
             $"Installed: {c.Installed}",
             $"Version: {c.Version ?? "(unknown)"}",
+            $"Desktop package version: {c.DesktopVersion}",
             $"Executable(s): {string.Join(" | ", c.Executables)}",
             $"Codex home: {c.CodexHome}",
             $"Config: {c.ConfigPath} (exists={c.ConfigExists})",

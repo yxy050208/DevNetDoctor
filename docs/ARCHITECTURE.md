@@ -35,9 +35,11 @@ The important design rule is **observe before mutate**.
 
 ## Why explicit route tests?
 
-A test that merely calls `HttpClient` with defaults can hide the exact question we need to answer: which proxy source did the process actually use? v0.1 therefore constructs explicit Direct / Windows-system-proxy / environment-proxy clients.
+A test that merely calls `HttpClient` with defaults can hide the exact question we need to answer: which proxy source did the process actually use? v0.1.1 therefore constructs explicit Direct / Windows-system-proxy / environment-proxy clients and separately tests direct IPv4 and IPv6.
 
-The specialized OpenAI adapter intentionally sends an invalid OAuth grant (`grant_type=test`) without credentials. Receiving a normal OAuth validation error demonstrates that the request reached the service far enough to be parsed. It is not an authentication attempt.
+The specialized OpenAI adapter intentionally sends an invalid OAuth grant (`grant_type=test`) without credentials. Receiving a structured OAuth validation error demonstrates that the request reached the service far enough to be parsed. Device-auth uses HEAD only, so it checks transport without starting device authorization. Neither is an authentication attempt.
+
+TLS validation remains enabled. The probe records certificate metadata and reports policy errors or route issuer differences as evidence, but it does not identify a security product from a certificate alone and never disables verification.
 
 ## Repairs
 

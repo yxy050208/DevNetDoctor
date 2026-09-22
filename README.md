@@ -2,7 +2,7 @@
 
 **浏览器能上网，Codex 或命令行工具却连不上？DevNet Doctor 帮你排查 Windows 上的代理配置和网络路径问题。**
 
-它是一款在本机运行的 Windows 诊断工具。v0.1 重点检查系统代理、环境变量代理、本地端口和 OpenAI OAuth 连通性，并提供 Codex 配置检查与有限的修复操作。
+它是一款在本机运行的 Windows 诊断工具。v0.1.1 重点检查系统代理、环境变量代理、本地端口、IPv4/IPv6 路径和 OpenAI OAuth 连通性，并提供 Codex 配置检查与有限的修复操作。
 
 ## 解决什么问题？
 
@@ -21,7 +21,7 @@
 
 ## 下载和使用
 
-1. 从 [v0.1.0 发布页](https://github.com/yxy050208/DevNetDoctor/releases/tag/v0.1.0) 下载 **DevNetDoctor.exe**。
+1. 从 [v0.1.1 发布页](https://github.com/yxy050208/DevNetDoctor/releases/tag/v0.1.1) 下载 **DevNetDoctor.exe**。
 2. 在 Windows x64 上运行。EXE 自带运行时，无需另外安装 .NET SDK。
 3. 先查看 **Findings**（诊断结论），再查看 **Route matrix**（网络路径对比）。
 4. 如需让支持该设置的 Codex 版本使用系统代理，可在 **Codex** 页确认后执行 **Enable Codex system proxy**；修改前会备份配置。
@@ -29,18 +29,18 @@
 
 只想运行脚本，也可以下载源码包，按下方 PowerShell 快速开始操作。
 
-## v0.1 能做什么、有哪些边界？
+## v0.1.1 能做什么、有哪些边界？
 
-- **诊断为主：** 比较 WinINET、WinHTTP 和环境变量中的代理信息；网络路径测试目前专门针对 OpenAI OAuth，不代表 Git、npm、pip 等所有服务都可达。
+- **诊断为主：** 比较 WinINET、WinHTTP 和环境变量中的代理信息；网络路径测试针对 OpenAI OAuth 和 device-auth 端点，并不代表 Git、npm、pip 等所有服务都可达。
 - **有限修复：** 可备份并设置 Codex 的 `respect_system_proxy = true`。该设置是否生效取决于 Codex 版本；不会自动修复账号、令牌、服务故障或所有代理问题。
 - **避免留下失效配置：** 不会把当前本地代理端口永久写入用户环境变量。GUI 可复制仅作用于当前 PowerShell 会话的代理命令。
 - **CCSwitch 只检查：** 不修改 provider 配置；PAC 只报告地址，不执行脚本。
-- **凭据保护：** DevNet Doctor 只检查 `auth.json` 的文件元数据。OAuth 探测只发送 `grant_type=test`，不发送账号凭据。报告会过滤常见敏感字段。
+- **凭据保护：** DevNet Doctor 只检查 `auth.json` 的文件元数据。OAuth 探测只发送 `grant_type=test`；device-auth 只发送 HEAD 请求，不发送账号凭据、device code 或 authorization code。报告会过滤常见敏感字段。
 - **网络探测会联网：** 配置检查在本机进行，连通性测试会请求 OpenAI OAuth 端点；工具不用于绕过服务可用性或地区限制。
 
 ---
 
-A local-first Windows diagnostic and repair tool for cases where **the browser works but a CLI or desktop developer tool does not**. The first release focuses on proxy inheritance, stale local proxy ports, OAuth connectivity, and Codex/CCSwitch diagnostics. English technical details follow.
+A local-first Windows diagnostic and repair tool for cases where **the browser works but a CLI or desktop developer tool does not**. v0.1.1 adds IPv4/IPv6 comparison, transport-only device-auth probing, and conservative TLS evidence. English technical details follow.
 
 ## Why this exists
 
@@ -57,7 +57,7 @@ That can produce failures such as browser login succeeding while a CLI token exc
 
 DevNet Doctor compares the routes instead of guessing.
 
-## v0.1 features
+## v0.1.1 features
 
 - Reads Windows WinINET manual proxy and PAC URL.
 - Reads process-level and user-level proxy environment variables.
@@ -65,8 +65,11 @@ DevNet Doctor compares the routes instead of guessing.
 - Detects whether a loopback proxy port is actually listening.
 - Builds an OpenAI OAuth route matrix for:
   - direct connection
+  - direct IPv4 and IPv6
   - Windows system proxy
   - environment proxy
+- Checks the device-auth endpoint without sending a device code.
+- Records TLS certificate subject/issuer metadata and flags certificate validation failures or issuer differences between routes.
 - Detects the useful distinction between:
   - region/network policy rejection on one route
   - successful arrival at the OAuth service on another route
@@ -84,7 +87,7 @@ DevNet Doctor compares the routes instead of guessing.
   - process detection
   - listening TCP port detection
   - common config-file discovery
-  - no provider-file mutation in v0.1
+  - no provider-file mutation in v0.1.1
 - Redacted shareable diagnostics report.
 - Portable PowerShell edition for immediate testing without compiling the GUI.
 
@@ -99,7 +102,7 @@ DevNet Doctor is intentionally conservative.
 - The report redactor filters common Bearer tokens, JSON token fields, cookies, JWTs, and OAuth codes.
 - It does **not** permanently set `HTTP_PROXY` / `HTTPS_PROXY` to the current local port, because local proxy apps may change ports after reboot.
 - Codex configuration is backed up before modification.
-- CCSwitch provider configuration is not modified in v0.1.
+- CCSwitch provider configuration is not modified in v0.1.1.
 - The tool is for diagnosing connectivity to services you are authorized to access; it is not intended to bypass service availability or regional restrictions.
 
 ## Quick start — portable PowerShell edition
@@ -198,12 +201,13 @@ DevNetDoctor/
 
 - v0.1 reports PAC URLs but does not execute PAC JavaScript itself.
 - The route matrix currently includes a specialized OpenAI OAuth probe because Codex is the first adapter. More generic endpoint profiles can be added next.
+- A successful network probe does not prove that Codex's own token-exchange implementation works. If OAuth is reachable but Codex remains logged out, record the CLI/Desktop versions and update timing, then check certificate errors and HTTPS inspection in antivirus/VPN software. These are investigation leads, not proof of a regression.
 - CCSwitch has multiple variants/config formats, so v0.1 avoids rewriting provider settings.
 - SOCKS-specific behavior is reported indirectly; the C# route tester currently uses HTTP(S) proxy endpoints.
 
 ## Development status
 
-v0.1.0 has passed a local Windows build with .NET SDK 10.0.400 (zero warnings and errors), the C# self-test harness, and a PowerShell 5.1 scanner/report smoke test. A self-contained win-x64 EXE was produced and passed a process-start smoke test.
+v0.1.1 has passed a local Windows build with .NET SDK 10.0.400 (zero warnings and errors), the C# self-test harness, and a PowerShell 5.1 scanner/report smoke test. A self-contained win-x64 EXE was produced and passed a process-start smoke test.
 
 This is an initial release. Full GUI interaction testing, every repair edge case, and behavior across different Windows, Codex and proxy configurations still need broader validation. `CODEX_HANDOFF.md` records the original validation plan; it is not a claim that every item has been completed.
 

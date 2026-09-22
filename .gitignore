@@ -7,4 +7,5 @@ artifacts/
 *.suo
 *.log
 *.bak-*
+*.zip
 devnet-report*.txt

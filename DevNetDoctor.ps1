@@ -55,13 +55,17 @@ function Test-LocalProxy([uri]$Proxy) {
     return [bool](Get-NetTCPConnection -State Listen -LocalPort $Proxy.Port -ErrorAction SilentlyContinue)
 }
 
-function Invoke-OAuthProbe([string]$Name, [uri]$Proxy, [switch]$Direct) {
+function Invoke-OAuthProbe([string]$Name, [uri]$Proxy, [switch]$Direct, [ValidateSet('Any','IPv4','IPv6')][string]$AddressFamily = 'Any') {
     $tmp = [System.IO.Path]::GetTempFileName()
     try {
         $args = @('-sS','-o',$tmp,'-w','%{http_code}','-X','POST','https://auth.openai.com/oauth/token','-H','Content-Type: application/x-www-form-urlencoded','-d','grant_type=test')
+        if ($AddressFamily -eq 'IPv4') { $args = @('-4') + $args }
+        if ($AddressFamily -eq 'IPv6') { $args = @('-6') + $args }
         if ($Direct) { $args = @('--noproxy','*') + $args }
         elseif ($Proxy) { $args = @('-x', $Proxy.AbsoluteUri.TrimEnd('/')) + $args }
-        $status = (& curl.exe @args 2>&1 | Out-String).Trim()
+        $oldErrorAction = $ErrorActionPreference
+        try { $ErrorActionPreference = 'Continue'; $status = (& curl.exe @args 2>$null | Out-String).Trim() }
+        finally { $ErrorActionPreference = $oldErrorAction }
         $body = Get-Content $tmp -Raw -ErrorAction SilentlyContinue
         $class = if ($body -match 'unsupported_country_region_territory|Country, region, or territory not supported') { 'RegionBlocked' }
                  elseif ($status -eq '400' -and $body -match 'invalid_value|grant_type') { 'OAuthReachable' }
@@ -71,6 +75,16 @@ function Invoke-OAuthProbe([string]$Name, [uri]$Proxy, [switch]$Direct) {
     } finally {
         Remove-Item $tmp -Force -ErrorAction SilentlyContinue
     }
+}
+
+function Invoke-DeviceAuthTransportProbe([string]$Name, [uri]$Proxy) {
+    $args = @('-sS','-o','NUL','-w','%{http_code}','-I','https://auth.openai.com/api/accounts/deviceauth/usercode')
+    if ($Proxy) { $args = @('-x', $Proxy.AbsoluteUri.TrimEnd('/')) + $args }
+    $oldErrorAction = $ErrorActionPreference
+    try { $ErrorActionPreference = 'Continue'; $status = (& curl.exe @args 2>$null | Out-String).Trim() }
+    finally { $ErrorActionPreference = $oldErrorAction }
+    $class = if ($status -match '^[1-5]\d{2}$') { 'HttpResponse' } else { 'TransportError' }
+    [pscustomobject]@{ Route=$Name; Proxy=if($Proxy){$Proxy.AbsoluteUri}else{'Direct'}; HTTP=$status; Class=$class; Detail='HEAD only; device authorization was not attempted.' }
 }
 
 function Get-CodexConfigPath {
@@ -155,6 +169,9 @@ netsh winhttp show proxy
 Write-Section 'OpenAI OAuth route matrix'
 $probes = @()
 $probes += Invoke-OAuthProbe -Name 'Direct' -Direct
+$probes += Invoke-OAuthProbe -Name 'Direct IPv4' -Direct -AddressFamily IPv4
+$probes += Invoke-OAuthProbe -Name 'Direct IPv6' -Direct -AddressFamily IPv6
+$probes += Invoke-DeviceAuthTransportProbe -Name 'Device auth (direct)' -Proxy $null
 if ($system.Enabled -and $systemProxy) { $probes += Invoke-OAuthProbe -Name 'Windows system proxy' -Proxy $systemProxy }
 if ($processProxy -and $processProxy.AbsoluteUri -ne $systemProxy.AbsoluteUri) { $probes += Invoke-OAuthProbe -Name 'Environment proxy' -Proxy $processProxy }
 $probes | Format-Table Route,Proxy,HTTP,Class -AutoSize
@@ -203,7 +220,7 @@ if ($ReportPath) {
     $report += "DevNet Doctor portable report - $(Get-Date -Format s)"
     $report += "WindowsProxy=$($system.ProxyServer); Enabled=$($system.Enabled); PAC=$($system.AutoConfigURL)"
     $report += "ProcessHTTPS_PROXY=$env:HTTPS_PROXY; ProcessHTTP_PROXY=$env:HTTP_PROXY; NO_PROXY=$env:NO_PROXY"
-    foreach ($p in $probes) { $report += "Route=$($p.Route); Proxy=$($p.Proxy); HTTP=$($p.HTTP); Class=$($p.Class)" }
+    foreach ($p in $probes) { $report += "Route=$($p.Route); Proxy=$($p.Proxy); HTTP=$($p.HTTP); Class=$($p.Class); Detail=$($p.Detail)" }
     if ($codex) { $report += "Codex=$(codex --version); Login=$(codex login status); respect_system_proxy=$(Get-RespectSystemProxy $configPath)" }
     $reportText = Secret-Redact (($report -join [Environment]::NewLine))
     Set-Content -Path $ReportPath -Value $reportText -Encoding utf8
